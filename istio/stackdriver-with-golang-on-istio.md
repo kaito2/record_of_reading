@@ -251,6 +251,8 @@ kubectl apply -f istio-fev1-bev1.yaml
 
 アクセスしてみる
 
+`user` -> `istio-gateway` -> `fe:v1`
+
 ```
 for i in {1..10}; do curl -sk -w "\n" -s http://$GATEWAY_IP/hostname &&  sleep 1; done
 
@@ -267,4 +269,123 @@ hello from myapp-v1-7969cccc78-zwghg, i'm running version 1
 ```
 
 **外部サービスを登録していないのでトポロジにログの送信が表示されていない**
+
+`user` -> `istio-gateway` -> `fe:v1` -> `be:v1`
+
+```
+for i in {1..10}; do curl -sk -w "\n" -s http://$GATEWAY_IP/backend &&  sleep 1; done
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-sfjg2 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-sfjg2 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-sfjg2 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-sfjg2 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-sfjg2 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-sfjg2 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-sfjg2 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-sfjg2 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-sfjg2 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-sfjg2 running version 1
+```
+
+`deploy_config/istio-deployment.yaml` を編集し、 `myapp-v2` の `replicas` を `1` に変更する。
+
+apply
+
+```
+kubectl apply -f istio-deployment.yaml
+```
+
+```
+for i in {1..10}; do curl -sk -w "\n" -s http://$GATEWAY_IP/backend &&  sleep 1; done
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-s5592 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-s5592 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-s5592 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-s5592 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-s5592 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-s5592 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-s5592 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-s5592 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-s5592 running version 1
+Response from Backend: This is a response from Backend be-v1-5b646b8c7d-s5592 running version 1
+```
+
+確認しても `v1` にしか転送されていない。
+
+Virtual service に traffic split を適用する。
+
+```
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: myapp-virtualservice
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - my-gateway
+  - my-gateway-ilb  
+  http:
+  - route:
+    - destination:
+        host: myapp
+        subset: v1
+      weight: 50
+    - destination:
+        host: myapp
+        subset: v2
+      weight: 50
+```
+
+apply
+
+```
+kubectl apply -f istio-fev1v2-bev1.yaml
+```
+
+**省略**
+
+### Logging
+
+サンプルでは以下のような記述をしていた
+
+```
+import (
+  log "github.com/sirupsen/logrus"
+)
+...
+log.SetFormatter(&log.JSONFormatter{
+	DisableTimestamp: true,
+	FieldMap: log.FieldMap{
+		log.FieldKeyLevel: "severity",
+	},
+})
+log.SetOutput(os.Stdout)
+log.SetLevel(log.InfoLevel)
+```
+
+Google の公式 logging を使うとなにかまずいのだろうか(パフォーマンス面など)。
+
+[Package logging](https://godoc.org/cloud.google.com/go/logging)
+
+### Tracing
+
+トレーシングが見えるのはわかったが、どれが何に対応しているのかわからなかった。
+例えば以下のようなトレースデータの場合、
+
+![](image/2019-11-09-00-23-58.png)
+
+そもそも span が途切れているし、URL なども見られないので何に対応しているのかわからない。
+
+**TODO: 調査**
+
+### Profiling 
+
+**TODO: これは自分が作ったプログラム or ソースを理解してからやりたい**
+
+### Debugging
+
+**TODO: 以前利用したときは Golang の固有の問題でできなかった気がするので調査してからやる。**
+
+### Error Reporting
+
+**TODO: シンプルにやってない**
 
