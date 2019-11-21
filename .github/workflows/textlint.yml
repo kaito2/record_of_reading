@@ -25,7 +25,8 @@ jobs:
           textlint-plugin-markdown
         npm cache clean --force
         # TODO: Modify target directory
-        textlint --format checkstyle --config .github/workflows/.textlintrc istio/istio-step-by-step/*.md > \
+        TARGET_FILES=$(find . -name \*.md | grep -v README.\*.md)
+        textlint --format checkstyle --config .github/workflows/.textlintrc ${TARGET_FILES} > \
           textlint.log || EXIT_CODE=$?
         # TODO: Check only files that have differences compared to the previous commit
         cat textlint.log | bin/reviewdog -reporter=github-pr-review \

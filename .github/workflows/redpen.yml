@@ -34,8 +34,9 @@ jobs:
     - name: run redpen
       run: |
         # TODO: Modify target directory
+        TARGET_FILES=$(find . -name \*.md | grep -v README.\*.md)
         $HOME/redpen/bin/redpen --lang ja --format markdown --limit 0 --conf .github/workflows/redpen-conf.ja.xml \
-          istio/istio-step-by-step/*.md > redpen.log || EXIT_CODE=$?
+          ${TARGET_FILES} > redpen.log || EXIT_CODE=$?
         sed -i'' -e 's$^$articles/$' -e '$d' redpen.log
         # TODO: Check only files that have differences compared to the previous commit
         cat redpen.log | bin/reviewdog -reporter=github-pr-review -diff='git --no-pager diff HEAD^' -efm='%f:%l: %m' -name=RedPen
