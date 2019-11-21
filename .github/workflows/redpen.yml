@@ -1,0 +1,45 @@
+name: redpen
+on: [pull_request]
+
+jobs:
+  redpen:
+    name: redpen
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v1
+    - name: setup-reviewdog
+      run: |
+        URL=https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh
+        wget -O - -q ${URL} | sh -s
+    - uses: actions/setup-java@v1
+      with:
+        java-version: '8.0.232'
+        architecture: x64
+    - name: setup redpen
+      run: |
+        set -x
+        export DOWNLOAD_URL="${REDPEN_URL}/redpen-${VERSION}/redpen-${VERSION}.tar.gz"
+        wget -q ${DOWNLOAD_URL} -O /tmp/redpen.tar.gz
+        tar -xzvf /tmp/redpen.tar.gz
+        mkdir -p $HOME/redpen/bin
+        cp -av redpen-distribution-${VERSION}/* $HOME/redpen
+        rm -rf redpen-distribution-${VERSION} /tmp/redpen.tar.gz
+        export PATH=$HOME/redpen/bin:$PATH
+        ls $HOME/redpen/
+        ls $HOME/redpen/bin
+        # .github/workflows/logback.xml $HOME/redpen/conf/logback.xml
+      env:
+        VERSION: 1.10.1
+        REDPEN_URL: https://github.com/redpen-cc/redpen/releases/download
+    - name: run redpen
+      run: |
+        # TODO: Modify target directory
+        $HOME/redpen/bin/redpen --lang ja --format markdown --limit 0 --conf .github/workflows/redpen-conf.ja.xml \
+          istio/istio-step-by-step/*.md > redpen.log || EXIT_CODE=$?
+        sed -i'' -e 's$^$articles/$' -e '$d' redpen.log
+        # TODO: Check only files that have differences compared to the previous commit
+        cat redpen.log | bin/reviewdog -reporter=github-pr-review -diff='git --no-pager diff HEAD^' -efm='%f:%l: %m' -name=RedPen
+        exit ${EXIT_CODE}
+
+      env:
+        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
