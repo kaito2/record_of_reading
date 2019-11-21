@@ -22,7 +22,7 @@ jobs:
         npm install -g prh@5.4.4
         npm cache clean --force
         TARGET_FILES=$(find . -name \*.md | grep -v README.\*.md)
-        prh --rules .github/workflows/prh/prh-rule.yml --verify ${TARGET_FILES=$(find} > prh.log || EXIT_CODE=$?
+        prh --rules .github/workflows/prh/prh-rule.yml --verify ${TARGET_FILES} > prh.log || EXIT_CODE=$?
         cat prh.log | bin/reviewdog -reporter=github-pr-review -diff='git --no-pager diff HEAD^' -efm='%f(%l,%c): %m' -name=prh
         cat prh.log
         exit ${EXIT_CODE}
