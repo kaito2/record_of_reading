@@ -5,5 +5,5 @@
   "filters": {
     "comments": true
   },
-  "plugins": ["textlint"]
+  "plugins": ["markdown"]
 }
